@@ -12,8 +12,13 @@ afterAll(() => {
   fs.rmSync(path.dirname(TEST_IMAGE), { recursive: true, force: true });
 });
 
+beforeEach(() => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
 afterEach(() => {
   delete global.fetch;
+  console.error.mockRestore();
 });
 
 const { classifyPhoto } = require('../src/vlm');
@@ -117,4 +122,14 @@ test('classifyKondisiRumah returns null when every photo fails to classify', asy
   ]);
 
   expect(result).toBeNull();
+});
+
+test('module load throws if SEVERITY is missing an entry for a value in KONDISI_RUMAH (prevents silent future drift)', () => {
+  jest.resetModules();
+  jest.doMock('../src/constants', () => ({
+    KONDISI_RUMAH: ['Layak', 'Kurang Layak', 'Tidak Layak', 'Darurat'],
+  }));
+  expect(() => require('../src/vlm')).toThrow(/SEVERITY is missing an entry for "Darurat"/);
+  jest.dontMock('../src/constants');
+  jest.resetModules();
 });

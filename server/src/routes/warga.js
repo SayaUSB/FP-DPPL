@@ -5,6 +5,7 @@ const db = require('../db');
 const { requireAuth, requireRole } = require('../auth');
 const { hitungSkor } = require('../scoring');
 const { classifyKondisiRumah } = require('../vlm');
+const { KONDISI_RUMAH } = require('../constants');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('warga'));
@@ -21,6 +22,62 @@ const upload = multer({
 
 function getWargaId(req) {
   return req.user.wargaId;
+}
+
+// Per-warga sequencing for the VLM advisory: at most one classification run
+// in flight per warga at a time. A new trigger while one is already running
+// doesn't spawn a parallel run (avoids hammering Ollama with N concurrent
+// requests on rapid re-uploads) — it just marks that one more run should
+// happen right after the current one finishes, using whatever the latest
+// photos are by then. Because runs for the same warga never overlap, the
+// final UPDATE always reflects the most recently *started* run's snapshot,
+// which is taken after all earlier-queued uploads have already landed —
+// this also closes the last-write-wins race that existed when every upload
+// fired its own independent, unsequenced classification.
+const classifyInFlight = new Set();
+const reclassifyPending = new Set();
+
+function scheduleKondisiClassification(wargaId) {
+  if (classifyInFlight.has(wargaId)) {
+    reclassifyPending.add(wargaId);
+    return;
+  }
+  classifyInFlight.add(wargaId);
+  runKondisiClassification(wargaId);
+}
+
+function runKondisiClassification(wargaId) {
+  const finish = () => {
+    classifyInFlight.delete(wargaId);
+    if (reclassifyPending.delete(wargaId)) {
+      classifyInFlight.add(wargaId);
+      runKondisiClassification(wargaId);
+    }
+  };
+
+  const latestPerJenis = db.prepare(`
+    SELECT f.jenis, f.file_path FROM foto_rumah f
+    WHERE f.warga_id = ? AND f.id = (
+      SELECT MAX(id) FROM foto_rumah WHERE warga_id = f.warga_id AND jenis = f.jenis
+    )
+  `).all(wargaId).map((f) => ({ jenis: f.jenis, file_path: path.join(__dirname, '..', '..', 'uploads', f.file_path) }));
+
+  if (latestPerJenis.length !== 3) {
+    finish();
+    return;
+  }
+
+  classifyKondisiRumah(latestPerJenis)
+    .then((result) => {
+      if (!result) return;
+      db.prepare(
+        'UPDATE data_administratif SET ai_kondisi_saran = ?, ai_kondisi_alasan = ? WHERE warga_id = ?'
+      ).run(result.kondisi, result.alasan, wargaId);
+    })
+    .catch((err) => {
+      console.error('[vlm] failed to update kondisi rumah advisory for warga', wargaId, '-', err.message);
+    })
+    .finally(finish);
 }
 
 router.get('/me/profile', (req, res) => {
@@ -42,7 +99,7 @@ router.put('/me/data-administratif', (req, res) => {
   const { kategori_kerja, pekerjaan, pendapatan, tanggungan, status_rumah, kondisi_rumah } = req.body;
   const valid = ['tetap', 'serabutan', 'tidak_bekerja'].includes(kategori_kerja)
     && ['Milik Sendiri', 'Kontrak', 'Menumpang'].includes(status_rumah)
-    && ['Layak', 'Kurang Layak', 'Tidak Layak'].includes(kondisi_rumah)
+    && KONDISI_RUMAH.includes(kondisi_rumah)
     && Number.isFinite(Number(pendapatan)) && Number(pendapatan) >= 0
     && Number.isInteger(Number(tanggungan)) && Number(tanggungan) >= 0;
   if (!valid) return res.status(400).json({ error: 'Data administratif tidak lengkap atau tidak valid' });
@@ -81,35 +138,10 @@ router.post('/me/foto', upload.single('foto'), (req, res) => {
     UPDATE data_administratif SET chk_foto = 1, updated_at = datetime('now') WHERE warga_id = ?
   `).run(wargaId);
 
-  const distinctJenis = db.prepare(
-    'SELECT COUNT(DISTINCT jenis) AS c FROM foto_rumah WHERE warga_id = ?'
-  ).get(wargaId).c;
-
-  // Re-fires on every upload once all 3 jenis exist (not just the first time),
-  // so a re-uploaded photo gets a fresh classification using the newer file
-  // (see the MAX(id) subquery below). Known limitation: this advisory field
-  // is fire-and-forget, so if a warga re-uploads two photos within the VLM's
-  // ~15s response window, whichever classification resolves last wins the
-  // final UPDATE — not necessarily the one based on the most current photos.
-  // Acceptable because ai_kondisi_saran/ai_kondisi_alasan are advisory-only
-  // and never feed into kondisi_rumah or the priority score.
-  if (distinctJenis === 3) {
-    const latestPerJenis = db.prepare(`
-      SELECT f.jenis, f.file_path FROM foto_rumah f
-      WHERE f.warga_id = ? AND f.id = (
-        SELECT MAX(id) FROM foto_rumah WHERE warga_id = f.warga_id AND jenis = f.jenis
-      )
-    `).all(wargaId).map((f) => ({ jenis: f.jenis, file_path: path.join(__dirname, '..', '..', 'uploads', f.file_path) }));
-
-    classifyKondisiRumah(latestPerJenis)
-      .then((result) => {
-        if (!result) return;
-        db.prepare(
-          'UPDATE data_administratif SET ai_kondisi_saran = ?, ai_kondisi_alasan = ? WHERE warga_id = ?'
-        ).run(result.kondisi, result.alasan, wargaId);
-      })
-      .catch(() => {});
-  }
+  // Fires whenever all 3 jenis exist (including on a re-upload after
+  // completion, so a replaced photo gets a fresh classification) but never
+  // more than one run in flight per warga — see scheduleKondisiClassification.
+  scheduleKondisiClassification(wargaId);
 
   res.status(201).json({ id: lastInsertRowid, jenis, file_path: req.file.filename });
 });

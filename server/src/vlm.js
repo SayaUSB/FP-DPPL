@@ -1,10 +1,19 @@
 const fs = require('fs');
+const { KONDISI_RUMAH } = require('./constants');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const OLLAMA_VLM_MODEL = process.env.OLLAMA_VLM_MODEL || 'moondream';
-const VALID_KONDISI = ['Layak', 'Kurang Layak', 'Tidak Layak'];
+const VALID_KONDISI = KONDISI_RUMAH;
 const SEVERITY = { 'Tidak Layak': 3, 'Kurang Layak': 2, Layak: 1 };
 const TIMEOUT_MS = 15000;
+
+// Fail fast at startup rather than silently mis-ranking results later if a
+// future taxonomy change adds/renames a category in one place but not the other.
+for (const kondisi of VALID_KONDISI) {
+  if (!(kondisi in SEVERITY)) {
+    throw new Error(`vlm.js: SEVERITY is missing an entry for "${kondisi}" (VALID_KONDISI: ${VALID_KONDISI.join(', ')})`);
+  }
+}
 
 const PROMPT = `Anda menilai kondisi kelayakan rumah dari sebuah foto untuk program bantuan
 sosial. Klasifikasikan foto ini sebagai salah satu dari: "Layak", "Kurang
@@ -28,7 +37,8 @@ function extractJsonBlock(text) {
 async function classifyPhoto(absoluteFilePath) {
   let timer;
   try {
-    const imageBase64 = fs.readFileSync(absoluteFilePath).toString('base64');
+    const imageBuffer = await fs.promises.readFile(absoluteFilePath);
+    const imageBase64 = imageBuffer.toString('base64');
     const controller = new AbortController();
     timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -53,6 +63,7 @@ async function classifyPhoto(absoluteFilePath) {
     if (!VALID_KONDISI.includes(parsed.kondisi)) return null;
     return { kondisi: parsed.kondisi, alasan: String(parsed.alasan || '') };
   } catch (e) {
+    console.error('[vlm] classifyPhoto failed for', absoluteFilePath, '-', e.message);
     return null;
   } finally {
     clearTimeout(timer);

@@ -4,6 +4,7 @@ const PDFDocument = require('pdfkit');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../auth');
 const { hitungSkor, tingkatPrioritas, rekomendasiAI } = require('../scoring');
+const { KONDISI_RUMAH } = require('../constants');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('admin'));
@@ -103,7 +104,7 @@ router.put('/warga/:id', (req, res) => {
   const { nama, alamat, no_telepon, kategori_kerja, pekerjaan, pendapatan, tanggungan, status_rumah, kondisi_rumah } = req.body;
   const valid = ['tetap', 'serabutan', 'tidak_bekerja'].includes(kategori_kerja)
     && ['Milik Sendiri', 'Kontrak', 'Menumpang'].includes(status_rumah)
-    && ['Layak', 'Kurang Layak', 'Tidak Layak'].includes(kondisi_rumah)
+    && KONDISI_RUMAH.includes(kondisi_rumah)
     && Number.isFinite(Number(pendapatan)) && Number(pendapatan) >= 0
     && Number.isInteger(Number(tanggungan)) && Number(tanggungan) >= 0;
   if (!valid) return res.status(400).json({ error: 'Data warga tidak lengkap atau tidak valid' });

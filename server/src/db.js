@@ -1,11 +1,14 @@
 const path = require('path');
 const bcrypt = require('bcrypt');
 const Database = require('better-sqlite3');
+const { KONDISI_RUMAH } = require('./constants');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'sibansos.sqlite');
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
+
+const kondisiRumahList = KONDISI_RUMAH.map((v) => `'${v}'`).join(', ');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -43,7 +46,7 @@ db.exec(`
     pendapatan INTEGER,
     tanggungan INTEGER,
     status_rumah TEXT CHECK (status_rumah IN ('Milik Sendiri', 'Kontrak', 'Menumpang')),
-    kondisi_rumah TEXT CHECK (kondisi_rumah IN ('Layak', 'Kurang Layak', 'Tidak Layak')),
+    kondisi_rumah TEXT CHECK (kondisi_rumah IN (${kondisiRumahList})),
     skor_prioritas REAL,
     validitas TEXT NOT NULL DEFAULT 'menunggu'
       CHECK (validitas IN ('menunggu', 'valid', 'perlu_perbaikan', 'tidak_valid')),
