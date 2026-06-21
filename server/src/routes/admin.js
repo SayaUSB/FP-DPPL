@@ -1,7 +1,9 @@
 const express = require('express');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../auth');
-const { hitungSkor } = require('../scoring');
+const { hitungSkor, tingkatPrioritas } = require('../scoring');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('admin'));
@@ -202,6 +204,97 @@ router.get('/riwayat/:id', (req, res) => {
   `).get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Data riwayat tidak ditemukan' });
   res.json(row);
+});
+
+const INCOME_BUCKETS = [
+  { label: '< 600rb', max: 600000 },
+  { label: '600rb - 1jt', max: 1000000 },
+  { label: '1jt - 1.5jt', max: 1500000 },
+  { label: '1.5jt - 2.5jt', max: 2500000 },
+  { label: '> 2.5jt', max: Infinity },
+];
+
+function buildStatistik() {
+  const warga = db.prepare(`
+    SELECT w.id, d.pendapatan, d.tanggungan, d.validitas, d.skor_prioritas
+    FROM warga w JOIN data_administratif d ON d.warga_id = w.id
+  `).all();
+
+  const active = db.prepare('SELECT * FROM bantuan WHERE is_active = 1').get();
+  const totalWarga = warga.length;
+  const totalPenerima = active
+    ? db.prepare("SELECT COUNT(*) AS c FROM hasil_seleksi WHERE bantuan_id = ? AND status = 'penerima'").get(active.id).c
+    : 0;
+
+  const distribusiPendapatan = INCOME_BUCKETS.map((b) => ({ label: b.label, jumlah: 0 }));
+  const donutValiditas = { valid: 0, menunggu: 0, perlu_perbaikan: 0, tidak_valid: 0 };
+  const histogramPrioritas = { 'Sangat Tinggi': 0, Tinggi: 0, Sedang: 0, Rendah: 0 };
+  let totalPendapatan = 0;
+
+  for (const w of warga) {
+    totalPendapatan += w.pendapatan || 0;
+    donutValiditas[w.validitas] = (donutValiditas[w.validitas] || 0) + 1;
+    if (w.skor_prioritas != null) {
+      histogramPrioritas[tingkatPrioritas(w.skor_prioritas).label] += 1;
+    }
+    const bucketIdx = INCOME_BUCKETS.findIndex((b) => (w.pendapatan || 0) < b.max);
+    distribusiPendapatan[bucketIdx === -1 ? INCOME_BUCKETS.length - 1 : bucketIdx].jumlah += 1;
+  }
+
+  return {
+    totalWarga,
+    kuota: active ? active.kuota : 0,
+    totalPenerima,
+    totalValid: donutValiditas.valid,
+    rataRataPendapatan: totalWarga ? Math.round(totalPendapatan / totalWarga) : 0,
+    distribusiPendapatan, donutValiditas, histogramPrioritas,
+  };
+}
+
+router.get('/statistik', (req, res) => {
+  res.json(buildStatistik());
+});
+
+router.get('/statistik/export', async (req, res) => {
+  const stats = buildStatistik();
+  const { format } = req.query;
+
+  if (format === 'excel') {
+    const wb = new ExcelJS.Workbook();
+    const sheet = wb.addWorksheet('Statistik');
+    sheet.addRow(['Metrik', 'Nilai']);
+    sheet.addRow(['Total Warga', stats.totalWarga]);
+    sheet.addRow(['Kuota', stats.kuota]);
+    sheet.addRow(['Total Penerima', stats.totalPenerima]);
+    sheet.addRow(['Total Valid', stats.totalValid]);
+    sheet.addRow(['Rata-rata Pendapatan', stats.rataRataPendapatan]);
+    sheet.addRow([]);
+    sheet.addRow(['Distribusi Pendapatan']);
+    stats.distribusiPendapatan.forEach((d) => sheet.addRow([d.label, d.jumlah]));
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="statistik-sibansos.xlsx"');
+    await wb.xlsx.write(res);
+    return res.end();
+  }
+
+  if (format === 'pdf') {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="statistik-sibansos.pdf"');
+    const doc = new PDFDocument();
+    doc.pipe(res);
+    doc.fontSize(16).text('Laporan Statistik SIBANSOS RT', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Total Warga: ${stats.totalWarga}`);
+    doc.text(`Kuota Periode Aktif: ${stats.kuota}`);
+    doc.text(`Total Penerima: ${stats.totalPenerima}`);
+    doc.text(`Total Data Valid: ${stats.totalValid}`);
+    doc.text(`Rata-rata Pendapatan: Rp ${stats.rataRataPendapatan.toLocaleString('id-ID')}`);
+    doc.end();
+    return;
+  }
+
+  res.status(400).json({ error: 'format harus pdf atau excel' });
 });
 
 module.exports = router;
