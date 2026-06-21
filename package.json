@@ -1,0 +1,10 @@
+{
+  "name": "sibansos-rt",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix web run dev",
+    "test:server": "npm --prefix server test"
+  }
+}
