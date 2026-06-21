@@ -58,6 +58,19 @@ function VerifikasiDrawer({ warga, onClose, onSimpan }) {
             <div className="field full"><div className="field-label">Alamat</div><div className="field-val" style={{ fontSize: 13.5 }}>{warga.alamat || '-'}</div></div>
           </div>
 
+          {warga.ai_kondisi_saran && (
+            <div className="mt12" style={{ background: 'var(--blue-50)', border: '1px solid var(--blue-100)', borderRadius: 'var(--radius)', padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <Icon name="sparkle" style={{ color: 'var(--blue-600)', marginTop: 1 }} />
+              <div style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>
+                <strong>Saran Asisten AI (VLM):</strong> {warga.ai_kondisi_saran}
+                {warga.ai_kondisi_alasan && <> — <em>"{warga.ai_kondisi_alasan}"</em></>}
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                  Saran otomatis dari foto, bukan keputusan resmi. Kondisi Rumah di atas tetap nilai yang dipilih warga/RT.
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="section-title">Foto Kondisi Rumah</div>
           <div className="photo-grid">
             {['eksterior', 'interior', 'lingkungan'].map((jenis) => {
