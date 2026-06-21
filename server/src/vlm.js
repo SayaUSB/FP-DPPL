@@ -17,10 +17,11 @@ function extractJsonBlock(text) {
 }
 
 async function classifyPhoto(absoluteFilePath) {
+  let timer;
   try {
     const imageBase64 = fs.readFileSync(absoluteFilePath).toString('base64');
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     const res = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: 'POST',
@@ -33,7 +34,6 @@ async function classifyPhoto(absoluteFilePath) {
       }),
       signal: controller.signal,
     });
-    clearTimeout(timer);
 
     if (!res.ok) return null;
     const data = await res.json();
@@ -45,6 +45,8 @@ async function classifyPhoto(absoluteFilePath) {
     return { kondisi: parsed.kondisi, alasan: String(parsed.alasan || '') };
   } catch (e) {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
