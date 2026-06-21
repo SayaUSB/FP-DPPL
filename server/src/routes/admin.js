@@ -28,4 +28,102 @@ router.get('/bantuan/active', (req, res) => {
   res.json(row);
 });
 
+function rowToWarga(row) {
+  return {
+    id: row.id, nama: row.nama, nik: row.nik, no_kk: row.no_kk,
+    alamat: row.alamat, no_telepon: row.no_telepon,
+    kategori_kerja: row.kategori_kerja, pekerjaan: row.pekerjaan,
+    pendapatan: row.pendapatan, tanggungan: row.tanggungan,
+    status_rumah: row.status_rumah, kondisi_rumah: row.kondisi_rumah,
+    skor_prioritas: row.skor_prioritas, validitas: row.validitas,
+    catatan_verifikasi: row.catatan_verifikasi,
+    chk_ktp: !!row.chk_ktp, chk_kk: !!row.chk_kk,
+    chk_pendapatan: !!row.chk_pendapatan, chk_foto: !!row.chk_foto,
+  };
+}
+
+const WARGA_JOIN_SELECT = `
+  SELECT w.*, d.kategori_kerja, d.pekerjaan, d.pendapatan, d.tanggungan,
+         d.status_rumah, d.kondisi_rumah, d.skor_prioritas, d.validitas,
+         d.catatan_verifikasi, d.chk_ktp, d.chk_kk, d.chk_pendapatan, d.chk_foto
+  FROM warga w JOIN data_administratif d ON d.warga_id = w.id
+`;
+
+router.get('/warga', (req, res) => {
+  const { validitas, search } = req.query;
+  let sql = WARGA_JOIN_SELECT + ' WHERE 1=1';
+  const params = [];
+  if (validitas) { sql += ' AND d.validitas = ?'; params.push(validitas); }
+  if (search) { sql += ' AND (w.nama LIKE ? OR w.nik LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
+  const rows = db.prepare(sql).all(...params);
+  res.json(rows.map(rowToWarga));
+});
+
+router.get('/warga/:id', (req, res) => {
+  const row = db.prepare(WARGA_JOIN_SELECT + ' WHERE w.id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Warga tidak ditemukan' });
+  const foto = db.prepare('SELECT * FROM foto_rumah WHERE warga_id = ?').all(req.params.id);
+  res.json({ ...rowToWarga(row), foto });
+});
+
+router.put('/warga/:id/validitas', (req, res) => {
+  const { validitas, catatan_verifikasi, chk_ktp, chk_kk, chk_pendapatan, chk_foto } = req.body;
+  if (!['valid', 'menunggu', 'perlu_perbaikan', 'tidak_valid'].includes(validitas)) {
+    return res.status(400).json({ error: 'validitas tidak dikenal' });
+  }
+  db.prepare(`
+    UPDATE data_administratif SET
+      validitas = ?, catatan_verifikasi = ?,
+      chk_ktp = ?, chk_kk = ?, chk_pendapatan = ?, chk_foto = ?,
+      updated_at = datetime('now')
+    WHERE warga_id = ?
+  `).run(validitas, catatan_verifikasi || null,
+    chk_ktp ? 1 : 0, chk_kk ? 1 : 0, chk_pendapatan ? 1 : 0, chk_foto ? 1 : 0,
+    req.params.id);
+
+  const row = db.prepare(WARGA_JOIN_SELECT + ' WHERE w.id = ?').get(req.params.id);
+  res.json(rowToWarga(row));
+});
+
+router.put('/warga/:id', (req, res) => {
+  const { nama, alamat, no_telepon, kategori_kerja, pekerjaan, pendapatan, tanggungan, status_rumah, kondisi_rumah } = req.body;
+  const valid = ['tetap', 'serabutan', 'tidak_bekerja'].includes(kategori_kerja)
+    && ['Milik Sendiri', 'Kontrak', 'Menumpang'].includes(status_rumah)
+    && ['Layak', 'Kurang Layak', 'Tidak Layak'].includes(kondisi_rumah)
+    && Number.isFinite(Number(pendapatan)) && Number(pendapatan) >= 0
+    && Number.isInteger(Number(tanggungan)) && Number(tanggungan) >= 0;
+  if (!valid) return res.status(400).json({ error: 'Data warga tidak lengkap atau tidak valid' });
+
+  const skor = hitungSkor({
+    pendapatan: Number(pendapatan), tanggungan: Number(tanggungan), kondisiRumah: kondisi_rumah,
+    statusRumah: status_rumah, kategoriKerja: kategori_kerja,
+  });
+
+  if (nama || alamat || no_telepon) {
+    db.prepare('UPDATE warga SET nama = COALESCE(?, nama), alamat = COALESCE(?, alamat), no_telepon = COALESCE(?, no_telepon) WHERE id = ?')
+      .run(nama || null, alamat || null, no_telepon || null, req.params.id);
+  }
+
+  db.prepare(`
+    UPDATE data_administratif SET
+      kategori_kerja = ?, pekerjaan = ?, pendapatan = ?, tanggungan = ?,
+      status_rumah = ?, kondisi_rumah = ?, skor_prioritas = ?,
+      validitas = 'menunggu', updated_at = datetime('now')
+    WHERE warga_id = ?
+  `).run(kategori_kerja, pekerjaan || null, Number(pendapatan), Number(tanggungan),
+    status_rumah, kondisi_rumah, skor, req.params.id);
+
+  const row = db.prepare(WARGA_JOIN_SELECT + ' WHERE w.id = ?').get(req.params.id);
+  res.json(rowToWarga(row));
+});
+
+router.post('/skor-preview', (req, res) => {
+  const { pendapatan, tanggungan, kondisiRumah, statusRumah, kategoriKerja } = req.body;
+  const skor = hitungSkor({
+    pendapatan: Number(pendapatan) || 0, tanggungan: Number(tanggungan) || 0,
+    kondisiRumah, statusRumah, kategoriKerja,
+  });
+  res.json({ skor });
+});
+
 module.exports = router;
