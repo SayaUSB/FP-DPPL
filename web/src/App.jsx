@@ -12,6 +12,7 @@ import { Verifikasi } from './pages/admin/Verifikasi';
 import { StatusSeleksi } from './pages/admin/StatusSeleksi';
 import { Riwayat } from './pages/admin/Riwayat';
 import { Statistik } from './pages/admin/Statistik';
+import { UbahWarga } from './pages/admin/UbahWarga';
 
 function Protected({ role, children }) {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
 
       <Route path="/admin/kuota" element={<Protected role="admin"><Kuota /></Protected>} />
       <Route path="/admin/verifikasi" element={<Protected role="admin"><Verifikasi /></Protected>} />
+      <Route path="/admin/warga/:id/ubah" element={<Protected role="admin"><UbahWarga /></Protected>} />
       <Route path="/admin/status" element={<Protected role="admin"><StatusSeleksi /></Protected>} />
       <Route path="/admin/riwayat" element={<Protected role="admin"><Riwayat /></Protected>} />
       <Route path="/admin/statistik" element={<Protected role="admin"><Statistik /></Protected>} />
