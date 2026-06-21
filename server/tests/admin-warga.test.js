@@ -89,3 +89,16 @@ test('GET /admin/warga/:id/rekomendasi returns AI narrative and factor breakdown
   expect(res.body.faktor.length).toBe(5);
   expect(res.body.teks).toContain(String(res.body.skor));
 });
+
+test('GET /admin/warga/:id includes the VLM advisory columns when present', async () => {
+  const wargaId = await seedWarga('vlm1');
+  const db2 = require('../src/db');
+  db2.prepare('UPDATE data_administratif SET ai_kondisi_saran = ?, ai_kondisi_alasan = ? WHERE warga_id = ?')
+    .run('Tidak Layak', 'Atap bocor di beberapa titik.', wargaId);
+
+  const agent = request.agent(app);
+  await loginAdmin(agent);
+  const res = await agent.get(`/api/admin/warga/${wargaId}`);
+  expect(res.body.ai_kondisi_saran).toBe('Tidak Layak');
+  expect(res.body.ai_kondisi_alasan).toBe('Atap bocor di beberapa titik.');
+});

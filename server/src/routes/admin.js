@@ -41,13 +41,15 @@ function rowToWarga(row) {
     catatan_verifikasi: row.catatan_verifikasi,
     chk_ktp: !!row.chk_ktp, chk_kk: !!row.chk_kk,
     chk_pendapatan: !!row.chk_pendapatan, chk_foto: !!row.chk_foto,
+    ai_kondisi_saran: row.ai_kondisi_saran, ai_kondisi_alasan: row.ai_kondisi_alasan,
   };
 }
 
 const WARGA_JOIN_SELECT = `
   SELECT w.*, d.kategori_kerja, d.pekerjaan, d.pendapatan, d.tanggungan,
          d.status_rumah, d.kondisi_rumah, d.skor_prioritas, d.validitas,
-         d.catatan_verifikasi, d.chk_ktp, d.chk_kk, d.chk_pendapatan, d.chk_foto
+         d.catatan_verifikasi, d.chk_ktp, d.chk_kk, d.chk_pendapatan, d.chk_foto,
+         d.ai_kondisi_saran, d.ai_kondisi_alasan
   FROM warga w JOIN data_administratif d ON d.warga_id = w.id
 `;
 
