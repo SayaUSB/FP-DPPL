@@ -85,6 +85,14 @@ router.post('/me/foto', upload.single('foto'), (req, res) => {
     'SELECT COUNT(DISTINCT jenis) AS c FROM foto_rumah WHERE warga_id = ?'
   ).get(wargaId).c;
 
+  // Re-fires on every upload once all 3 jenis exist (not just the first time),
+  // so a re-uploaded photo gets a fresh classification using the newer file
+  // (see the MAX(id) subquery below). Known limitation: this advisory field
+  // is fire-and-forget, so if a warga re-uploads two photos within the VLM's
+  // ~15s response window, whichever classification resolves last wins the
+  // final UPDATE — not necessarily the one based on the most current photos.
+  // Acceptable because ai_kondisi_saran/ai_kondisi_alasan are advisory-only
+  // and never feed into kondisi_rumah or the priority score.
   if (distinctJenis === 3) {
     const latestPerJenis = db.prepare(`
       SELECT f.jenis, f.file_path FROM foto_rumah f
