@@ -126,4 +126,55 @@ router.post('/skor-preview', (req, res) => {
   res.json({ skor });
 });
 
+const SELEKSI_NOTIF_MESSAGE = {
+  penerima: 'Selamat, Anda ditetapkan sebagai PENERIMA bantuan periode ini.',
+  cadangan: 'Anda masuk dalam DAFTAR CADANGAN penerima bantuan periode ini.',
+  bukan: 'Anda belum ditetapkan sebagai penerima bantuan pada periode ini.',
+  menunggu: 'Status penerimaan bantuan Anda sedang ditinjau ulang.',
+};
+
+router.get('/seleksi', (req, res) => {
+  const active = db.prepare('SELECT * FROM bantuan WHERE is_active = 1').get();
+  if (!active) return res.status(404).json({ error: 'Belum ada periode bantuan aktif' });
+
+  const allWarga = db.prepare('SELECT w.id, d.skor_prioritas FROM warga w JOIN data_administratif d ON d.warga_id = w.id').all();
+  const insertIfMissing = db.prepare(`
+    INSERT INTO hasil_seleksi (warga_id, bantuan_id, skor_prioritas, status)
+    SELECT ?, ?, ?, 'menunggu'
+    WHERE NOT EXISTS (SELECT 1 FROM hasil_seleksi WHERE warga_id = ? AND bantuan_id = ?)
+  `);
+  for (const w of allWarga) {
+    insertIfMissing.run(w.id, active.id, w.skor_prioritas, w.id, active.id);
+  }
+
+  const rows = db.prepare(`
+    SELECT hs.*, w.nama, w.nik, d.validitas
+    FROM hasil_seleksi hs
+    JOIN warga w ON w.id = hs.warga_id
+    JOIN data_administratif d ON d.warga_id = hs.warga_id
+    WHERE hs.bantuan_id = ?
+    ORDER BY hs.skor_prioritas DESC
+  `).all(active.id);
+
+  res.json(rows);
+});
+
+router.put('/seleksi/:id', (req, res) => {
+  const { status, catatan } = req.body;
+  if (!['menunggu', 'penerima', 'cadangan', 'bukan'].includes(status)) {
+    return res.status(400).json({ error: 'status tidak dikenal' });
+  }
+  const hasil = db.prepare('SELECT * FROM hasil_seleksi WHERE id = ?').get(req.params.id);
+  if (!hasil) return res.status(404).json({ error: 'Data seleksi tidak ditemukan' });
+
+  db.prepare('UPDATE hasil_seleksi SET status = ?, catatan = ? WHERE id = ?')
+    .run(status, catatan || null, req.params.id);
+
+  db.prepare('INSERT INTO notifications (warga_id, message) VALUES (?, ?)')
+    .run(hasil.warga_id, SELEKSI_NOTIF_MESSAGE[status]);
+
+  const updated = db.prepare('SELECT * FROM hasil_seleksi WHERE id = ?').get(req.params.id);
+  res.json(updated);
+});
+
 module.exports = router;
