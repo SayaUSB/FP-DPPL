@@ -14,6 +14,11 @@ afterAll(() => {
   });
 });
 
+jest.mock('../src/vlm', () => ({
+  classifyKondisiRumah: jest.fn(),
+}));
+const { classifyKondisiRumah } = require('../src/vlm');
+
 async function registerAndLogin(agent, nik) {
   await agent.post('/api/auth/register').send({ nama: 'Aminah Lestari', nik, password: 'password1' });
   await agent.post('/api/auth/login').send({ nik, password: 'password1' });
@@ -81,4 +86,56 @@ test('UC08: warga sees menunggu status before any seleksi exists', async () => {
   const res = await agent.get('/api/warga/me/status');
   expect(res.status).toBe(200);
   expect(res.body.status).toBe('belum_diseleksi');
+});
+
+test('UC07: uploading the 3rd distinct jenis triggers classifyKondisiRumah, which updates the advisory columns', async () => {
+  classifyKondisiRumah.mockResolvedValue({ kondisi: 'Kurang Layak', alasan: 'Atap terlihat rapuh.' });
+
+  const agent = request.agent(app);
+  await registerAndLogin(agent, '666666');
+
+  const upload = (jenis) => agent.post('/api/warga/me/foto').field('jenis', jenis).attach('foto', Buffer.from('x'), `test-${jenis}.jpg`);
+
+  const r1 = await upload('eksterior');
+  expect(r1.status).toBe(201);
+  expect(classifyKondisiRumah).not.toHaveBeenCalled();
+
+  const r2 = await upload('interior');
+  expect(r2.status).toBe(201);
+  expect(classifyKondisiRumah).not.toHaveBeenCalled();
+
+  const r3 = await upload('lingkungan');
+  expect(r3.status).toBe(201);
+
+  // The route fires classifyKondisiRumah without awaiting it, so give the
+  // microtask queue a tick to let the .then() callback run before asserting.
+  await new Promise((resolve) => setImmediate(resolve));
+
+  expect(classifyKondisiRumah).toHaveBeenCalledTimes(1);
+
+  const db = require('../src/db');
+  const profile = db.prepare('SELECT id FROM warga WHERE nik = ?').get('666666');
+  const row = db.prepare('SELECT ai_kondisi_saran, ai_kondisi_alasan FROM data_administratif WHERE warga_id = ?').get(profile.id);
+  expect(row.ai_kondisi_saran).toBe('Kurang Layak');
+  expect(row.ai_kondisi_alasan).toBe('Atap terlihat rapuh.');
+});
+
+test('UC07: upload still succeeds with 201 even if classifyKondisiRumah rejects', async () => {
+  classifyKondisiRumah.mockRejectedValue(new Error('Ollama unreachable'));
+
+  const agent = request.agent(app);
+  await registerAndLogin(agent, '777777');
+
+  const upload = (jenis) => agent.post('/api/warga/me/foto').field('jenis', jenis).attach('foto', Buffer.from('x'), `test-${jenis}.jpg`);
+  await upload('eksterior');
+  await upload('interior');
+  const r3 = await upload('lingkungan');
+
+  expect(r3.status).toBe(201);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const db = require('../src/db');
+  const profile = db.prepare('SELECT id FROM warga WHERE nik = ?').get('777777');
+  const row = db.prepare('SELECT ai_kondisi_saran FROM data_administratif WHERE warga_id = ?').get(profile.id);
+  expect(row.ai_kondisi_saran).toBeNull();
 });

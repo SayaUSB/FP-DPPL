@@ -4,6 +4,7 @@ const path = require('path');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../auth');
 const { hitungSkor } = require('../scoring');
+const { classifyKondisiRumah } = require('../vlm');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('warga'));
@@ -71,13 +72,36 @@ router.post('/me/foto', upload.single('foto'), (req, res) => {
   }
   if (!req.file) return res.status(400).json({ error: 'File foto wajib diunggah' });
 
+  const wargaId = getWargaId(req);
   const { lastInsertRowid } = db.prepare(
     'INSERT INTO foto_rumah (warga_id, jenis, file_path, deskripsi) VALUES (?, ?, ?, ?)'
-  ).run(getWargaId(req), jenis, req.file.filename, deskripsi || null);
+  ).run(wargaId, jenis, req.file.filename, deskripsi || null);
 
   db.prepare(`
     UPDATE data_administratif SET chk_foto = 1, updated_at = datetime('now') WHERE warga_id = ?
-  `).run(getWargaId(req));
+  `).run(wargaId);
+
+  const distinctJenis = db.prepare(
+    'SELECT COUNT(DISTINCT jenis) AS c FROM foto_rumah WHERE warga_id = ?'
+  ).get(wargaId).c;
+
+  if (distinctJenis === 3) {
+    const latestPerJenis = db.prepare(`
+      SELECT f.jenis, f.file_path FROM foto_rumah f
+      WHERE f.warga_id = ? AND f.id = (
+        SELECT MAX(id) FROM foto_rumah WHERE warga_id = f.warga_id AND jenis = f.jenis
+      )
+    `).all(wargaId).map((f) => ({ jenis: f.jenis, file_path: path.join(__dirname, '..', '..', 'uploads', f.file_path) }));
+
+    classifyKondisiRumah(latestPerJenis)
+      .then((result) => {
+        if (!result) return;
+        db.prepare(
+          'UPDATE data_administratif SET ai_kondisi_saran = ?, ai_kondisi_alasan = ? WHERE warga_id = ?'
+        ).run(result.kondisi, result.alasan, wargaId);
+      })
+      .catch(() => {});
+  }
 
   res.status(201).json({ id: lastInsertRowid, jenis, file_path: req.file.filename });
 });
