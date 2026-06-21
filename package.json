@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm --prefix server run dev",
     "dev:web": "npm --prefix web run dev",
     "test:server": "npm --prefix server test"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }
