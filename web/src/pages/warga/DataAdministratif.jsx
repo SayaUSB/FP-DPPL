@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
-import { useToast } from '../../components/ui';
+import { Icon, useToast } from '../../components/ui';
 
 const EMPTY = {
   kategori_kerja: 'serabutan', pekerjaan: '', pendapatan: '', tanggungan: '',
@@ -44,48 +44,49 @@ export function DataAdministratif() {
   }
 
   return (
-    <div>
-      <h1>Data Administratif</h1>
-      <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-        <div className="field">
-          <label>Kategori Stabilitas Kerja</label>
-          <select value={form.kategori_kerja} onChange={(e) => update('kategori_kerja', e.target.value)}>
+    <div className="content-inner">
+      <div className="page-intro">
+        <span className="uc-tag"><Icon name="edit" /> UC06</span>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Data Administratif</h2>
+        <p>Isi data pekerjaan, pendapatan, dan kondisi rumah Anda. Data ini menjadi dasar perhitungan skor prioritas penerima bantuan.</p>
+      </div>
+
+      <div className="card" style={{ maxWidth: 520 }}>
+        <form className="card-pad" onSubmit={handleSubmit}>
+          <label className="input-label">Kategori Stabilitas Kerja</label>
+          <select className="input" value={form.kategori_kerja} onChange={(e) => update('kategori_kerja', e.target.value)}>
             <option value="tetap">Tetap</option>
             <option value="serabutan">Serabutan</option>
             <option value="tidak_bekerja">Tidak Bekerja</option>
           </select>
-        </div>
-        <div className="field">
-          <label>Pekerjaan</label>
-          <input value={form.pekerjaan} onChange={(e) => update('pekerjaan', e.target.value)} />
-        </div>
-        <div className="field">
-          <label>Pendapatan Keluarga / bulan (Rp)</label>
-          <input type="number" min="0" value={form.pendapatan} onChange={(e) => update('pendapatan', e.target.value)} required />
-        </div>
-        <div className="field">
-          <label>Jumlah Tanggungan</label>
-          <input type="number" min="0" value={form.tanggungan} onChange={(e) => update('tanggungan', e.target.value)} required />
-        </div>
-        <div className="field">
-          <label>Status Kepemilikan Rumah</label>
-          <select value={form.status_rumah} onChange={(e) => update('status_rumah', e.target.value)}>
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Pekerjaan</label>
+          <input className="input" value={form.pekerjaan} onChange={(e) => update('pekerjaan', e.target.value)} />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Pendapatan Keluarga / bulan (Rp)</label>
+          <input className="input" type="number" min="0" value={form.pendapatan} onChange={(e) => update('pendapatan', e.target.value)} required />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Jumlah Tanggungan</label>
+          <input className="input" type="number" min="0" value={form.tanggungan} onChange={(e) => update('tanggungan', e.target.value)} required />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Status Kepemilikan Rumah</label>
+          <select className="input" value={form.status_rumah} onChange={(e) => update('status_rumah', e.target.value)}>
             <option>Milik Sendiri</option>
             <option>Kontrak</option>
             <option>Menumpang</option>
           </select>
-        </div>
-        <div className="field">
-          <label>Kondisi Rumah</label>
-          <select value={form.kondisi_rumah} onChange={(e) => update('kondisi_rumah', e.target.value)}>
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Kondisi Rumah</label>
+          <select className="input" value={form.kondisi_rumah} onChange={(e) => update('kondisi_rumah', e.target.value)}>
             <option>Layak</option>
             <option>Kurang Layak</option>
             <option>Tidak Layak</option>
           </select>
-        </div>
-        {error && <p style={{ color: 'var(--red)' }}>{error}</p>}
-        <button className="btn btn-primary" type="submit">Simpan Data</button>
-      </form>
+
+          {error && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 10 }}>{error}</div>}
+          <button className="btn btn-primary mt16" type="submit"><Icon name="check" /> Simpan Data</button>
+        </form>
+      </div>
     </div>
   );
 }

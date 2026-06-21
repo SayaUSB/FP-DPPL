@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api';
-import { useToast } from '../../components/ui';
+import { Badge, Icon, tingkatPrioritas, useToast } from '../../components/ui';
 
 export function UbahWarga() {
   const { id } = useParams();
@@ -36,7 +36,7 @@ export function UbahWarga() {
     return () => clearTimeout(timer);
   }, [form]);
 
-  if (!form) return <p>Memuat...</p>;
+  if (!form) return <div className="content-inner"><p>Memuat...</p></div>;
 
   function update(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -56,59 +56,79 @@ export function UbahWarga() {
   }
 
   const delta = skorBaru != null && skorLama != null ? skorBaru - skorLama : 0;
+  const previewT = skorBaru != null ? tingkatPrioritas(skorBaru) : null;
+  const toneColor = previewT && { red: 'var(--red)', amber: 'var(--amber)', blue: 'var(--blue-600)', gray: 'var(--faint)' }[previewT.tone];
 
   return (
-    <div>
-      <h1>Ubah Data Warga — {form.nama}</h1>
-      <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-        <div className="field">
-          <label>Kategori Stabilitas Kerja</label>
-          <select value={form.kategori_kerja} onChange={(e) => update('kategori_kerja', e.target.value)}>
+    <div className="content-inner">
+      <div className="page-intro">
+        <span className="uc-tag"><Icon name="edit" /> UC05</span>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Ubah Data Warga — {form.nama}</h2>
+        <p>Perbarui data warga bila terjadi perubahan kondisi. Skor prioritas dihitung ulang secara real-time dan validitas direset ke Menunggu setelah disimpan.</p>
+      </div>
+
+      <div className="ai-panel mt16" style={{ maxWidth: 520 }}>
+        <div className="ai-head">
+          <div className="ai-spark"><Icon name="sparkle" /></div>
+          <div className="ai-title">
+            Pratinjau Skor Prioritas
+            <small>Diperbarui otomatis saat data berubah</small>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Skor Lama</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--faint)', lineHeight: 1.1 }}>{skorLama}</div>
+          </div>
+          <div style={{ fontSize: 22, color: 'var(--faint)' }}>→</div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Skor Baru</div>
+            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1, color: toneColor }}>{skorBaru}</div>
+          </div>
+          <div style={{ marginLeft: 'auto' }}>
+            {previewT && <Badge tone={previewT.tone} dot={false}>{previewT.label}</Badge>}
+            {delta !== 0 && (
+              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 5, color: delta > 0 ? 'var(--red)' : 'var(--green)' }}>
+                {delta > 0 ? '▲' : '▼'} {Math.abs(delta)} poin
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="card mt16" style={{ maxWidth: 520 }}>
+        <form className="card-pad" onSubmit={handleSubmit}>
+          <label className="input-label">Kategori Stabilitas Kerja</label>
+          <select className="input" value={form.kategori_kerja} onChange={(e) => update('kategori_kerja', e.target.value)}>
             <option value="tetap">Tetap</option>
             <option value="serabutan">Serabutan</option>
             <option value="tidak_bekerja">Tidak Bekerja</option>
           </select>
-        </div>
-        <div className="field">
-          <label>Pendapatan Keluarga / bulan (Rp)</label>
-          <input type="number" min="0" value={form.pendapatan} onChange={(e) => update('pendapatan', e.target.value)} required />
-        </div>
-        <div className="field">
-          <label>Jumlah Tanggungan</label>
-          <input type="number" min="0" value={form.tanggungan} onChange={(e) => update('tanggungan', e.target.value)} required />
-        </div>
-        <div className="field">
-          <label>Status Kepemilikan</label>
-          <select value={form.status_rumah} onChange={(e) => update('status_rumah', e.target.value)}>
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Pendapatan Keluarga / bulan (Rp)</label>
+          <input className="input" type="number" min="0" value={form.pendapatan} onChange={(e) => update('pendapatan', e.target.value)} required />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Jumlah Tanggungan</label>
+          <input className="input" type="number" min="0" value={form.tanggungan} onChange={(e) => update('tanggungan', e.target.value)} required />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Status Kepemilikan</label>
+          <select className="input" value={form.status_rumah} onChange={(e) => update('status_rumah', e.target.value)}>
             <option>Milik Sendiri</option>
             <option>Kontrak</option>
             <option>Menumpang</option>
           </select>
-        </div>
-        <div className="field">
-          <label>Kondisi Rumah</label>
-          <select value={form.kondisi_rumah} onChange={(e) => update('kondisi_rumah', e.target.value)}>
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Kondisi Rumah</label>
+          <select className="input" value={form.kondisi_rumah} onChange={(e) => update('kondisi_rumah', e.target.value)}>
             <option>Layak</option>
             <option>Kurang Layak</option>
             <option>Tidak Layak</option>
           </select>
-        </div>
 
-        <div className="card" style={{ background: 'var(--bg)', marginBottom: 12 }}>
-          <strong>Pratinjau Skor Prioritas (Real-time)</strong>
-          <p style={{ fontSize: 24, margin: '4px 0' }}>
-            {skorBaru} / 100{' '}
-            {delta !== 0 && (
-              <span style={{ color: delta > 0 ? 'var(--red)' : 'var(--green)', fontSize: 14 }}>
-                ({delta > 0 ? '+' : ''}{delta} dari skor lama {skorLama})
-              </span>
-            )}
-          </p>
-        </div>
-
-        {error && <p style={{ color: 'var(--red)' }}>{error}</p>}
-        <button className="btn btn-primary" type="submit">Simpan Perubahan</button>
-      </form>
+          {error && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 10 }}>{error}</div>}
+          <button className="btn btn-primary mt16" type="submit"><Icon name="check" /> Simpan Perubahan</button>
+        </form>
+      </div>
     </div>
   );
 }

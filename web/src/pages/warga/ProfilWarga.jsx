@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
-import { useToast } from '../../components/ui';
+import { Icon, useToast } from '../../components/ui';
 
 export function ProfilWarga() {
   const [form, setForm] = useState({ nama: '', nik: '', alamat: '', no_telepon: '' });
@@ -26,28 +26,31 @@ export function ProfilWarga() {
   }
 
   return (
-    <div>
-      <h1>Profil Saya</h1>
-      <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-        <div className="field">
-          <label>Nama</label>
-          <input value={form.nama} disabled />
-        </div>
-        <div className="field">
-          <label>NIK</label>
-          <input value={form.nik} disabled />
-        </div>
-        <div className="field">
-          <label>Alamat</label>
-          <textarea rows={2} value={form.alamat} onChange={(e) => setForm((f) => ({ ...f, alamat: e.target.value }))} />
-        </div>
-        <div className="field">
-          <label>No. Telepon</label>
-          <input value={form.no_telepon} onChange={(e) => setForm((f) => ({ ...f, no_telepon: e.target.value }))} />
-        </div>
-        {error && <p style={{ color: 'var(--red)' }}>{error}</p>}
-        <button className="btn btn-primary" type="submit">Simpan Perubahan</button>
-      </form>
+    <div className="content-inner">
+      <div className="page-intro">
+        <span className="uc-tag"><Icon name="users" /> UC09</span>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Profil Saya</h2>
+        <p>Perbarui alamat dan kontak Anda. Perubahan data akan mereset status validitas menjadi Menunggu hingga diperiksa ulang oleh pengurus RT.</p>
+      </div>
+
+      <div className="card" style={{ maxWidth: 480 }}>
+        <form className="card-pad" onSubmit={handleSubmit}>
+          <label className="input-label">Nama</label>
+          <input className="input" value={form.nama} disabled />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>NIK</label>
+          <input className="input" value={form.nik} disabled />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Alamat</label>
+          <textarea className="input" rows={2} value={form.alamat} onChange={(e) => setForm((f) => ({ ...f, alamat: e.target.value }))} />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>No. Telepon</label>
+          <input className="input" value={form.no_telepon} onChange={(e) => setForm((f) => ({ ...f, no_telepon: e.target.value }))} />
+
+          {error && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 10 }}>{error}</div>}
+          <button className="btn btn-primary mt16" type="submit"><Icon name="check" /> Simpan Perubahan</button>
+        </form>
+      </div>
     </div>
   );
 }

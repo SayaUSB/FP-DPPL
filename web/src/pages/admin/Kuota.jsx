@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
-import { useToast } from '../../components/ui';
+import { Icon, useToast } from '../../components/ui';
 
 export function Kuota() {
   const [active, setActive] = useState(null);
@@ -27,37 +27,47 @@ export function Kuota() {
   }
 
   return (
-    <div>
-      <h1>Atur Kuota Penerima Bantuan</h1>
+    <div className="content-inner">
+      <div className="page-intro">
+        <span className="uc-tag"><Icon name="coins" /> UC01</span>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Atur Kuota Penerima Bantuan</h2>
+        <p>Tentukan jumlah maksimal penerima dan periode bantuan. Membuka periode baru menutup periode sebelumnya dan memindahkannya ke Riwayat.</p>
+      </div>
+
       {active && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <strong>Periode aktif saat ini:</strong> {active.periode} — Kuota {active.kuota} — {active.nama_bantuan}
+        <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', gap: 18, alignItems: 'center' }}>
+          <div className="stat-ico" style={{ background: 'var(--green-bg)', color: 'oklch(0.45 0.11 150)', margin: 0 }}>
+            <Icon name="shield" />
+          </div>
+          <div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Periode Aktif</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginTop: 2 }}>{active.periode} — {active.nama_bantuan}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>Kuota maksimal {active.kuota} penerima</div>
+          </div>
         </div>
       )}
-      <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-        <div className="field">
-          <label>Nama Bantuan</label>
-          <input value={form.nama_bantuan} onChange={(e) => setForm((f) => ({ ...f, nama_bantuan: e.target.value }))} required />
-        </div>
-        <div className="field">
-          <label>Jenis Bantuan</label>
-          <input value={form.jenis_bantuan} onChange={(e) => setForm((f) => ({ ...f, jenis_bantuan: e.target.value }))} />
-        </div>
-        <div className="field">
-          <label>Kuota Penerima</label>
-          <input type="number" min="1" value={form.kuota} onChange={(e) => setForm((f) => ({ ...f, kuota: e.target.value }))} required />
-        </div>
-        <div className="field">
-          <label>Nominal per Penerima (Rp)</label>
-          <input type="number" min="0" value={form.nominal} onChange={(e) => setForm((f) => ({ ...f, nominal: e.target.value }))} />
-        </div>
-        <div className="field">
-          <label>Periode</label>
-          <input value={form.periode} onChange={(e) => setForm((f) => ({ ...f, periode: e.target.value }))} placeholder="contoh: Triwulan II 2026" required />
-        </div>
-        {error && <p style={{ color: 'var(--red)' }}>{error}</p>}
-        <button className="btn btn-primary" type="submit">Buka Periode Baru</button>
-      </form>
+
+      <div className="card" style={{ maxWidth: 480 }}>
+        <form className="card-pad" onSubmit={handleSubmit}>
+          <label className="input-label">Nama Bantuan</label>
+          <input className="input" value={form.nama_bantuan} onChange={(e) => setForm((f) => ({ ...f, nama_bantuan: e.target.value }))} required />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Jenis Bantuan</label>
+          <input className="input" value={form.jenis_bantuan} onChange={(e) => setForm((f) => ({ ...f, jenis_bantuan: e.target.value }))} />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Kuota Penerima</label>
+          <input className="input" type="number" min="1" value={form.kuota} onChange={(e) => setForm((f) => ({ ...f, kuota: e.target.value }))} required />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Nominal per Penerima (Rp)</label>
+          <input className="input" type="number" min="0" value={form.nominal} onChange={(e) => setForm((f) => ({ ...f, nominal: e.target.value }))} />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Periode</label>
+          <input className="input" value={form.periode} onChange={(e) => setForm((f) => ({ ...f, periode: e.target.value }))} placeholder="contoh: Triwulan II 2026" required />
+
+          {error && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 10 }}>{error}</div>}
+          <button className="btn btn-primary mt16" type="submit"><Icon name="check" /> Buka Periode Baru</button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../auth');
-const { hitungSkor, tingkatPrioritas } = require('../scoring');
+const { hitungSkor, tingkatPrioritas, rekomendasiAI } = require('../scoring');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('admin'));
@@ -66,6 +66,16 @@ router.get('/warga/:id', (req, res) => {
   if (!row) return res.status(404).json({ error: 'Warga tidak ditemukan' });
   const foto = db.prepare('SELECT * FROM foto_rumah WHERE warga_id = ?').all(req.params.id);
   res.json({ ...rowToWarga(row), foto });
+});
+
+router.get('/warga/:id/rekomendasi', (req, res) => {
+  const row = db.prepare(WARGA_JOIN_SELECT + ' WHERE w.id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Warga tidak ditemukan' });
+  const rek = rekomendasiAI({
+    pendapatan: row.pendapatan || 0, tanggungan: row.tanggungan || 0,
+    kondisiRumah: row.kondisi_rumah, statusRumah: row.status_rumah, kategoriKerja: row.kategori_kerja,
+  });
+  res.json(rek);
 });
 
 router.put('/warga/:id/validitas', (req, res) => {

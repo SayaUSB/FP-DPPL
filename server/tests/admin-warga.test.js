@@ -79,3 +79,13 @@ test('skor-preview computes a score without persisting anything', async () => {
   expect(res.status).toBe(200);
   expect(res.body.skor).toBeGreaterThanOrEqual(70);
 });
+
+test('GET /admin/warga/:id/rekomendasi returns AI narrative and factor breakdown', async () => {
+  const wargaId = await seedWarga('ddd');
+  const agent = request.agent(app);
+  await loginAdmin(agent);
+  const res = await agent.get(`/api/admin/warga/${wargaId}/rekomendasi`);
+  expect(res.status).toBe(200);
+  expect(res.body.faktor.length).toBe(5);
+  expect(res.body.teks).toContain(String(res.body.skor));
+});

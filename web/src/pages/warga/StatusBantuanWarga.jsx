@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api';
-import { Badge } from '../../components/ui';
+import { Badge, Icon } from '../../components/ui';
 
 const STATUS_META = {
   penerima: { label: 'Penerima', tone: 'green' },
@@ -15,16 +15,33 @@ export function StatusBantuanWarga() {
 
   useEffect(() => { api.get('/api/warga/me/status').then(setData); }, []);
 
-  if (!data) return <p>Memuat...</p>;
+  if (!data) return <div className="content-inner"><p>Memuat...</p></div>;
   const meta = STATUS_META[data.status] || STATUS_META.belum_diseleksi;
 
   return (
-    <div>
-      <h1>Status Penerimaan Bantuan</h1>
-      <div className="card" style={{ maxWidth: 480 }}>
-        {data.bantuan && <p><strong>Periode:</strong> {data.bantuan.periode} ({data.bantuan.nama_bantuan})</p>}
-        <p><strong>Status:</strong> <Badge tone={meta.tone}>{meta.label}</Badge></p>
-        {data.catatan && <p><strong>Catatan Pengurus RT:</strong> {data.catatan}</p>}
+    <div className="content-inner">
+      <div className="page-intro">
+        <span className="uc-tag"><Icon name="shield" /> UC08</span>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Status Penerimaan Bantuan</h2>
+        <p>Lihat status penerimaan bantuan sosial Anda pada periode yang sedang berjalan.</p>
+      </div>
+
+      <div className="card card-pad" style={{ maxWidth: 480 }}>
+        {data.bantuan ? (
+          <>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Periode</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginTop: 3 }}>{data.bantuan.periode} — {data.bantuan.nama_bantuan}</div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13.5, color: 'var(--muted)' }}>Belum ada periode bantuan yang dibuka.</div>
+        )}
+        <div className="mt16"><Badge tone={meta.tone}>{meta.label}</Badge></div>
+        {data.catatan && (
+          <div className="mt16">
+            <div className="input-label">Catatan Pengurus RT</div>
+            <p style={{ fontSize: 13.5, color: 'var(--ink-2)', marginTop: 4 }}>{data.catatan}</p>
+          </div>
+        )}
       </div>
     </div>
   );

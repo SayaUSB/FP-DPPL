@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../../api';
-import { useToast } from '../../components/ui';
+import { Icon, useToast } from '../../components/ui';
 
 const JENIS_LIST = [
   { value: 'eksterior', label: 'Eksterior' },
@@ -35,26 +35,30 @@ export function FotoRumah() {
   }
 
   return (
-    <div>
-      <h1>Unggah Foto Kondisi Rumah</h1>
-      <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-        <div className="field">
-          <label>Jenis Foto</label>
-          <select value={jenis} onChange={(e) => setJenis(e.target.value)}>
+    <div className="content-inner">
+      <div className="page-intro">
+        <span className="uc-tag"><Icon name="image" /> UC07</span>
+        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Unggah Foto Kondisi Rumah</h2>
+        <p>Unggah foto eksterior, interior, dan lingkungan rumah sebagai bahan verifikasi pengurus RT.</p>
+      </div>
+
+      <div className="card" style={{ maxWidth: 520 }}>
+        <form className="card-pad" onSubmit={handleSubmit}>
+          <label className="input-label">Jenis Foto</label>
+          <select className="input" value={jenis} onChange={(e) => setJenis(e.target.value)}>
             {JENIS_LIST.map((j) => <option key={j.value} value={j.value}>{j.label}</option>)}
           </select>
-        </div>
-        <div className="field">
-          <label>File Foto</label>
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files[0])} required />
-        </div>
-        <div className="field">
-          <label>Deskripsi (opsional)</label>
-          <textarea value={deskripsi} onChange={(e) => setDeskripsi(e.target.value)} rows={3} />
-        </div>
-        {error && <p style={{ color: 'var(--red)' }}>{error}</p>}
-        <button className="btn btn-primary" type="submit">Unggah Foto</button>
-      </form>
+
+          <label className="input-label mt12" style={{ display: 'block' }}>File Foto</label>
+          <input className="input" type="file" accept="image/*" onChange={(e) => setFile(e.target.files[0])} required />
+
+          <label className="input-label mt12" style={{ display: 'block' }}>Deskripsi (opsional)</label>
+          <textarea className="input" value={deskripsi} onChange={(e) => setDeskripsi(e.target.value)} rows={3} />
+
+          {error && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 10 }}>{error}</div>}
+          <button className="btn btn-primary mt16" type="submit"><Icon name="upload" /> Unggah Foto</button>
+        </form>
+      </div>
     </div>
   );
 }
