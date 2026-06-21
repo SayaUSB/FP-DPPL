@@ -7,6 +7,9 @@ const router = express.Router();
 
 const COOKIE_OPTS = { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 };
 
+// System boundary from the DPPL spec: scoped to one RT, max 50 kepala keluarga.
+const MAX_WARGA = 50;
+
 router.post('/register', (req, res) => {
   const { nama, nik, no_kk, password } = req.body;
   if (!nama || !nik || !password || password.length < 6) {
@@ -14,6 +17,11 @@ router.post('/register', (req, res) => {
   }
   const existing = db.prepare('SELECT 1 FROM warga WHERE nik = ?').get(nik);
   if (existing) return res.status(400).json({ error: 'NIK sudah terdaftar' });
+
+  const totalWarga = db.prepare('SELECT COUNT(*) AS c FROM warga').get().c;
+  if (totalWarga >= MAX_WARGA) {
+    return res.status(400).json({ error: `Kuota pendaftaran warga sudah penuh (maksimal ${MAX_WARGA} KK per RT)` });
+  }
 
   const insertWarga = db.prepare(
     'INSERT INTO warga (nama, nik, no_kk) VALUES (?, ?, ?)'

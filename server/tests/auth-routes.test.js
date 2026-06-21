@@ -51,3 +51,21 @@ test('logout clears the session', async () => {
   const me = await agent.get('/api/auth/me');
   expect(me.status).toBe(401);
 });
+
+test('registration is rejected once the system already has 50 warga (UC system boundary: max 50 KK)', async () => {
+  const db = require('../src/db');
+  const alreadyRegistered = db.prepare('SELECT COUNT(*) AS c FROM warga').get().c;
+  const remainingSlots = 50 - alreadyRegistered;
+
+  for (let i = 0; i < remainingSlots; i++) {
+    const res = await request(app).post('/api/auth/register').send({
+      nama: `Warga ${i}`, nik: `cap-${i}`, password: 'password1',
+    });
+    expect(res.status).toBe(201);
+  }
+  const overflow = await request(app).post('/api/auth/register').send({
+    nama: 'Warga ke-51', nik: 'cap-overflow', password: 'password1',
+  });
+  expect(overflow.status).toBe(400);
+  expect(overflow.body.error).toMatch(/50/);
+});
