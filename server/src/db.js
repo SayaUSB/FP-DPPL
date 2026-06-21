@@ -87,6 +87,14 @@ db.exec(`
   );
 `);
 
+const dataAdminColumns = db.prepare("PRAGMA table_info(data_administratif)").all().map((c) => c.name);
+if (!dataAdminColumns.includes('ai_kondisi_saran')) {
+  db.exec('ALTER TABLE data_administratif ADD COLUMN ai_kondisi_saran TEXT');
+}
+if (!dataAdminColumns.includes('ai_kondisi_alasan')) {
+  db.exec('ALTER TABLE data_administratif ADD COLUMN ai_kondisi_alasan TEXT');
+}
+
 const adminExists = db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get();
 if (!adminExists) {
   const hash = bcrypt.hashSync('pengurus123', 10);

@@ -34,3 +34,9 @@ test('seeds exactly one admin user', () => {
   expect(admins.length).toBe(1);
   expect(admins[0].username).toBe('pengurus');
 });
+
+test('adds ai_kondisi_saran and ai_kondisi_alasan columns to data_administratif', () => {
+  const db = freshDb();
+  const columns = db.prepare("PRAGMA table_info(data_administratif)").all().map((c) => c.name);
+  expect(columns).toEqual(expect.arrayContaining(['ai_kondisi_saran', 'ai_kondisi_alasan']));
+});
