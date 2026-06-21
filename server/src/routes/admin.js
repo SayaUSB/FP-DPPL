@@ -177,4 +177,31 @@ router.put('/seleksi/:id', (req, res) => {
   res.json(updated);
 });
 
+router.get('/riwayat', (req, res) => {
+  const { periode } = req.query;
+  let sql = `
+    SELECT hs.*, w.nama, w.nik, b.periode, b.nama_bantuan
+    FROM hasil_seleksi hs
+    JOIN warga w ON w.id = hs.warga_id
+    JOIN bantuan b ON b.id = hs.bantuan_id
+    WHERE b.is_active = 0
+  `;
+  const params = [];
+  if (periode) { sql += ' AND b.periode = ?'; params.push(periode); }
+  sql += ' ORDER BY b.created_at DESC, hs.skor_prioritas DESC';
+  res.json(db.prepare(sql).all(...params));
+});
+
+router.get('/riwayat/:id', (req, res) => {
+  const row = db.prepare(`
+    SELECT hs.*, w.nama, w.nik, b.periode, b.nama_bantuan
+    FROM hasil_seleksi hs
+    JOIN warga w ON w.id = hs.warga_id
+    JOIN bantuan b ON b.id = hs.bantuan_id
+    WHERE hs.id = ?
+  `).get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Data riwayat tidak ditemukan' });
+  res.json(row);
+});
+
 module.exports = router;
