@@ -50,4 +50,16 @@ async function classifyPhoto(absoluteFilePath) {
   }
 }
 
-module.exports = { classifyPhoto, VALID_KONDISI, SEVERITY };
+async function classifyKondisiRumah(fotoRows) {
+  const results = await Promise.all(
+    fotoRows.map((f) => classifyPhoto(f.file_path))
+  );
+  const valid = results.filter((r) => r !== null);
+  if (valid.length === 0) return null;
+
+  return valid.reduce((worst, current) =>
+    SEVERITY[current.kondisi] > SEVERITY[worst.kondisi] ? current : worst
+  );
+}
+
+module.exports = { classifyPhoto, classifyKondisiRumah, VALID_KONDISI, SEVERITY };

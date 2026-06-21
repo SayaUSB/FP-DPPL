@@ -65,3 +65,47 @@ test('classifyPhoto returns null when the HTTP response is not ok', async () => 
   const result = await classifyPhoto(TEST_IMAGE);
   expect(result).toBeNull();
 });
+
+const { classifyKondisiRumah } = require('../src/vlm');
+
+test('classifyKondisiRumah picks the most severe result among 3 photos', async () => {
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ response: '{"kondisi": "Layak", "alasan": "Eksterior rapi."}' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ response: '{"kondisi": "Tidak Layak", "alasan": "Atap bocor parah."}' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ response: '{"kondisi": "Kurang Layak", "alasan": "Lingkungan kurang bersih."}' }) });
+
+  const result = await classifyKondisiRumah([
+    { jenis: 'eksterior', file_path: TEST_IMAGE },
+    { jenis: 'interior', file_path: TEST_IMAGE },
+    { jenis: 'lingkungan', file_path: TEST_IMAGE },
+  ]);
+
+  expect(result).toEqual({ kondisi: 'Tidak Layak', alasan: 'Atap bocor parah.' });
+});
+
+test('classifyKondisiRumah ignores photos that failed to classify and still returns the worst valid one', async () => {
+  global.fetch = jest.fn()
+    .mockRejectedValueOnce(new Error('timeout'))
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ response: '{"kondisi": "Kurang Layak", "alasan": "Cat dinding mengelupas."}' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ response: '{"kondisi": "Layak", "alasan": "Lingkungan bersih."}' }) });
+
+  const result = await classifyKondisiRumah([
+    { jenis: 'eksterior', file_path: TEST_IMAGE },
+    { jenis: 'interior', file_path: TEST_IMAGE },
+    { jenis: 'lingkungan', file_path: TEST_IMAGE },
+  ]);
+
+  expect(result).toEqual({ kondisi: 'Kurang Layak', alasan: 'Cat dinding mengelupas.' });
+});
+
+test('classifyKondisiRumah returns null when every photo fails to classify', async () => {
+  global.fetch = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+  const result = await classifyKondisiRumah([
+    { jenis: 'eksterior', file_path: TEST_IMAGE },
+    { jenis: 'interior', file_path: TEST_IMAGE },
+    { jenis: 'lingkungan', file_path: TEST_IMAGE },
+  ]);
+
+  expect(result).toBeNull();
+});
