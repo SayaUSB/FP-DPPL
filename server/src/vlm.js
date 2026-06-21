@@ -12,8 +12,17 @@ Layak", atau "Tidak Layak". Balas HANYA dengan JSON valid, tanpa teks lain,
 format: {"kondisi": "<salah satu kategori>", "alasan": "<1 kalimat singkat>"}`;
 
 function extractJsonBlock(text) {
-  const match = text.match(/\{[^{}]*\}/);
-  return match ? match[0] : null;
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
 }
 
 async function classifyPhoto(absoluteFilePath) {

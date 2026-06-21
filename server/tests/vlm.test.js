@@ -54,6 +54,15 @@ test('classifyPhoto returns null when kondisi is not one of the 3 valid categori
   expect(result).toBeNull();
 });
 
+test('classifyPhoto correctly extracts JSON even when alasan contains a literal brace character', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ response: '{"kondisi": "Kurang Layak", "alasan": "dinding ada {coretan} kecil"}' }),
+  });
+  const result = await classifyPhoto(TEST_IMAGE);
+  expect(result).toEqual({ kondisi: 'Kurang Layak', alasan: 'dinding ada {coretan} kecil' });
+});
+
 test('classifyPhoto returns null when fetch rejects (Ollama not running)', async () => {
   global.fetch = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
   const result = await classifyPhoto(TEST_IMAGE);
