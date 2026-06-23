@@ -1,0 +1,30 @@
+# Konfigurasi deploy Render — SIBANSOS RT (satu layanan: backend + frontend).
+#
+# Cara pakai (sekali saja):
+#   1. Buat akun di https://render.com (bisa login pakai GitHub).
+#   2. New + > Blueprint > pilih repo FP-DPPL > pilih branch yang berisi file
+#      ini > Apply. Render membaca render.yaml ini & deploy otomatis.
+#   3. Tunggu build selesai, lalu buka URL yang diberikan Render.
+#
+# Tiap kali ada push baru ke branch tersebut, Render otomatis deploy ulang.
+services:
+  - type: web
+    name: sibansos-rt
+    env: node
+    region: singapore
+    plan: free
+    healthCheckPath: /api/health
+    # Build: pasang dependency server, pasang dependency web (termasuk devDep
+    # vite untuk proses build), lalu build React jadi web/dist.
+    buildCommand: npm install --prefix server && npm install --include=dev --prefix web && npm run build --prefix web
+    # Start: isi data dummy (seed) lalu jalankan server. Karena disk Render
+    # gratis bersifat sementara, seed dijalankan tiap boot agar demo selalu
+    # tampil dengan data lengkap.
+    startCommand: npm run seed --prefix server && npm start --prefix server
+    envVars:
+      # Pin Node 20 supaya better-sqlite3 memakai prebuilt binary (tanpa kompilasi).
+      - key: NODE_VERSION
+        value: "20"
+      # JWT secret diacak otomatis oleh Render (jangan pakai nilai default).
+      - key: JWT_SECRET
+        generateValue: true
