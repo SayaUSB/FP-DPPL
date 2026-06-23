@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
@@ -17,6 +18,20 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/warga', require('./routes/warga'));
 app.use('/api/admin', require('./routes/admin'));
+
+// Deployment satu-layanan: backend sekalian menyajikan hasil build frontend
+// (web/dist). Folder ini hanya ada setelah `npm run build` di web/, jadi saat
+// dev/test (folder belum ada) blok ini dilewati dan tidak mengubah perilaku.
+const webDist = path.join(__dirname, '..', '..', 'web', 'dist');
+if (fs.existsSync(webDist)) {
+  app.use(express.static(webDist));
+  // SPA fallback: kembalikan index.html untuk route non-API agar React Router
+  // menangani navigasi sisi-klien.
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
+    res.sendFile(path.join(webDist, 'index.html'));
+  });
+}
 
 app.use((err, req, res, next) => {
   console.error(err);
